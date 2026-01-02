@@ -1,0 +1,40 @@
+import logging
+import sys
+from pathlib import Path
+
+# Add 'src' to path so imports work without setting PYTHONPATH
+sys.path.insert(0, str(Path(__file__).parent / 'src'))
+
+from tufup.repo import Repository
+
+from repo_settings import DIST_DIR, KEYS_DIR
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG)
+
+if __name__ == '__main__':
+    # create archive from latest pyinstaller bundle (assuming we have already
+    # created a pyinstaller bundle, and there is only one)
+    try:
+        bundle_dirs = [path for path in DIST_DIR.iterdir() if path.is_dir()]
+    except FileNotFoundError:
+        sys.exit(f'Directory not found: {DIST_DIR}\nDid you run pyinstaller?')
+    if len(bundle_dirs) != 1:
+        sys.exit(f'Expected one bundle, found {len(bundle_dirs)}.')
+    bundle_dir = bundle_dirs[0]
+    print(f'Adding bundle: {bundle_dir}')
+
+    # Create repository instance from config file (assuming the repository
+    # has already been initialized)
+    repo = Repository.from_config()
+    logger.info(f'repo diff method: {repo.binary_diff}')
+
+    # Add new app bundle to repository (automatically reads myapp.__version__)
+    repo.add_bundle(
+        new_bundle_dir=bundle_dir,
+        # [optional] custom metadata can be any dict (default is None)
+        custom_metadata={'changes': ['new feature x added', 'bug y fixed']},
+    )
+    repo.publish_changes(private_key_dirs=[KEYS_DIR])
+
+    print('Done.')
